@@ -1,0 +1,70 @@
+{
+  "api_version": "1.0",
+  "_deepmd_version": "2.0.3",
+  "train": [
+    {
+      "command": "bash {{PROJECT}}/dp_ft_shim.sh --pt",
+      "_comment": "shim: train 透传 dp --pt-expt (iter0 --finetune 基座 / iter>=1 --init-model); freeze 先用 dpa4c-slice-type-map (deepmd-GPU-DPA4 环境 bin/) 把 118-type checkpoint 无损切片成 3-type 再冻结, dpgen 拿到的 graph 始终是 3 元素",
+      "machine": {
+        "context_type": "local",
+        "batch_type": "shell",
+        "local_root": "./",
+        "remote_root": "./work"
+      },
+      "resources": {
+        "number_node": 1,
+        "_local_root": "./",
+        "cpu_per_node": 8,
+        "gpu_per_node": 0,
+        "queue_name": "MindForge",
+        "group_size": 4,
+        "custom_flags": [
+          ""
+        ],
+        "source_list": []
+      }
+    }
+  ],
+  "model_devi": [
+    {
+      "command": "lmp",
+      "machine": {
+        "context_type": "local",
+        "batch_type": "shell",
+        "local_root": "./",
+        "remote_root": "./work"
+      },
+      "resources": {
+        "number_node": 1,
+        "_local_root": "./",
+        "cpu_per_node": 8,
+        "gpu_per_node": 0,
+        "queue_name": "compute",
+        "para_deg": 2,
+        "group_size": 150,
+        "_comment": "para_deg=2: 2 个 lmp 并行各 8 线程共 16 核; 单体系 35 构型 x 4 温 = 140 任务/iter (group_size 150 保证单组, 防止 140/120=2 组 x para_deg2 = 4 个 lmp 超载), 后期 70 任务/iter"
+      }
+    }
+  ],
+  "fp": [
+    {
+      "command": "python3 {{PROJECT}}/fp_dispatch.py",
+      "machine": {
+        "context_type": "local",
+        "batch_type": "shell",
+        "local_root": "./",
+        "remote_root": "./work"
+      },
+      "resources": {
+        "number_node": 1,
+        "cpu_per_node": 1,
+        "gpu_per_node": 0,
+        "queue_name": "MindForge",
+        "group_size": 30,
+        "para_deg": 1,
+        "_comment": "group_size=30: 300任务/10并发, 吃满5账号x2位; 集群满则本地兜底(上限2), 都满排队"
+      }
+    }
+  ],
+  "_comment": "fp.command 已接入多账号分发器(5-dpgen_test 实测验证); train/model_devi 保持原样"
+}

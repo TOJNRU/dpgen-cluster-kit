@@ -1,0 +1,15 @@
+# VASP pseudopotentials (license restrictions)
+POTCAR*
+!POTCAR*.example
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+*.egg
+build/
+dist/
+
+# SSH keys / credentials
+*.pem
+id_rsa*

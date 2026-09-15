@@ -1,0 +1,163 @@
+{
+  "_comment": "Na-Ge-Se 单体系 dpgen 迭代 (Project3, Na60Ge16Se64 共 140 原子, AIMD SYSTEM 名 Ge_vac 即 Ge 缺陷结构, 数据集本地 type_map 为 Na-Ge-Se 3 元素)。dpa4c OMat 基座微调配方 (沿用 Project2 已验证流程): default_training_param.model.type_map 只写 3 元素占位, dpgen 会用顶层 type_map 覆盖后, 再由 dp_ft_shim.sh 还原为基座完整 118 元素 (DPA4C 不支持改 type_map), iter0 经 --finetune 从 DPA4C-Plus-OMat24-v20260819.pt2 微调, iter>=1 (training_reuse_iter=1) 经 --init-model 续训上一轮 checkpoint (80k 步, lr 1e-4 起, old_ratio auto=10 倍加权新数据); freeze 后由 dp_ft_shim.sh + dpa4c-slice-type-map (deepmd-GPU-DPA4 环境 bin/) 把 118-type checkpoint 无损切片为 3 元素 (Na,Ge,Se), 故 model_devi/lmp 拿到的 graph 始终是 3 元素, 与顶层 type_map 一致。dpgen 为补丁版 0.13.4.dev: dpa4c -> .pt2, --skip-neighbor-stat 防 16GB 显存 OOM。初始集为 AIMD 数据 (gen_dpgen_data.py v1): 7 条轨迹 300/450/600/750/900/1050/1200K 全帧 8:2 随机划分为 11200 训练 + 2800 验证帧 (随机划分, 无时序隔离带, T1200K 已纳入); 探索起始构型 35 个 (extract_POSCAR.py: 每条轨迹跳过前 300 帧后每隔 400 帧取 1, 即帧 300/700/1100/1500/1900, 覆盖全部 7 个温度)。探索温度 300-900K (MSD 轨迹审查: 7 条 AIMD 300-1200K 骨架 Ge/Se MSD<=2.2 A^2 均为固体/超离子态, Na 600K 起快扩散, 900K 探索有 1200K 数据兜底), 前期 4k-50k 步短程 temps 300/500/700/900, 后期聚焦 300/500K 长时程 200k 步 (=200ps, 防高温预熔化漂移)。",
+  "_comment_model_devi_jobs": "调度速查: iter0-1 nsteps=4k/trj25, iter2-3 8k/50, iter4-5 20k/100, iter6-7 50k/250 (均 temps 300/500/700/900); iter8-11 200k/250 (temps 300/500)。dpgen 任务数 = 构型数 x len(temps): 迭代 0-7 轮 35x4=140 个 lmp 任务, 8-11 轮 35x2=70 个 (每构型在所有指定温度下各跑一条轨迹)。model_devi_jobs 共 12 条 = 12 轮迭代。FP 使用 Na_pv / Ge_d / Se 赝势 (与 2-AIMD 完全一致, 见 5-dpgen/POTCAR_*), ENCUT=400 与 AIMD 一致。",
+  "type_map": [
+    "Na",
+    "Ge",
+    "Se"
+  ],
+  "mass_map": [
+    22.989769,
+    72.63,
+    78.971
+  ],
+  "train_backend": "pytorch",
+  "dp_train_skip_neighbor_stat": true,
+  "training_finetune_model": [
+    "{{PROJECT}}/DPA4C-Plus-OMat24-v20260819.pt2",
+    "{{PROJECT}}/DPA4C-Plus-OMat24-v20260819.pt2",
+    "{{PROJECT}}/DPA4C-Plus-OMat24-v20260819.pt2",
+    "{{PROJECT}}/DPA4C-Plus-OMat24-v20260819.pt2"
+  ],
+  "training_reuse_iter": 1,
+  "training_reuse_numb_steps": 80000,
+  "training_reuse_start_lr": 0.0001,
+  "training_reuse_start_pref_e": 1,
+  "training_reuse_start_pref_f": 100,
+  "training_reuse_old_ratio": "auto",
+  "init_data_prefix": "{{DATA}}",
+  "init_data_sys": [
+    "training_data"
+  ],
+  "init_batch_size": [
+    16
+  ],
+  "sys_configs_prefix": "{{DATA}}",
+  "sys_configs": [
+    [
+      "POSCAR/POSCAR_300_00300",  "POSCAR/POSCAR_300_00700",  "POSCAR/POSCAR_300_01100",  "POSCAR/POSCAR_300_01500",  "POSCAR/POSCAR_300_01900",
+      "POSCAR/POSCAR_450_00300",  "POSCAR/POSCAR_450_00700",  "POSCAR/POSCAR_450_01100",  "POSCAR/POSCAR_450_01500",  "POSCAR/POSCAR_450_01900",
+      "POSCAR/POSCAR_600_00300",  "POSCAR/POSCAR_600_00700",  "POSCAR/POSCAR_600_01100",  "POSCAR/POSCAR_600_01500",  "POSCAR/POSCAR_600_01900",
+      "POSCAR/POSCAR_750_00300",  "POSCAR/POSCAR_750_00700",  "POSCAR/POSCAR_750_01100",  "POSCAR/POSCAR_750_01500",  "POSCAR/POSCAR_750_01900",
+      "POSCAR/POSCAR_900_00300",  "POSCAR/POSCAR_900_00700",  "POSCAR/POSCAR_900_01100",  "POSCAR/POSCAR_900_01500",  "POSCAR/POSCAR_900_01900",
+      "POSCAR/POSCAR_1050_00300", "POSCAR/POSCAR_1050_00700", "POSCAR/POSCAR_1050_01100", "POSCAR/POSCAR_1050_01500", "POSCAR/POSCAR_1050_01900",
+      "POSCAR/POSCAR_1200_00300", "POSCAR/POSCAR_1200_00700", "POSCAR/POSCAR_1200_01100", "POSCAR/POSCAR_1200_01500", "POSCAR/POSCAR_1200_01900"
+    ]
+  ],
+  "sys_batch_size": [
+    16
+  ],
+  "numb_models": 4,
+  "default_training_param": {
+    "model": {
+      "type_map": [
+        "Na",
+        "Ge",
+        "Se"
+      ],
+      "descriptor": {
+        "type": "dpa4c",
+        "rcut": 6.0,
+        "channels": 128,
+        "lmax": 3,
+        "radial_modes": 4,
+        "basis_type": "bessel",
+        "n_radial": 16,
+        "use_amp": false,
+        "precision": "float32",
+        "seed": 42
+      },
+      "fitting_net": {
+        "type": "ener",
+        "neuron": [
+          384,
+          384,
+          384
+        ],
+        "resnet_dt": false,
+        "activation_function": "silu",
+        "precision": "float32",
+        "seed": 42
+      }
+    },
+    "learning_rate": {
+      "type": "wsd",
+      "start_lr": 0.001,
+      "stop_lr": 1e-08,
+      "warmup_steps": 1000,
+      "warmup_start_factor": 0.2,
+      "decay_phase_ratio": 0.675,
+      "decay_type": "linear"
+    },
+    "optimizer": {
+      "type": "HybridMuon",
+      "weight_decay": 0.001
+    },
+    "loss": {
+      "type": "ener",
+      "start_pref_e": 20,
+      "limit_pref_e": 20,
+      "start_pref_f": 100,
+      "limit_pref_f": 100,
+      "start_pref_v": 5,
+      "limit_pref_v": 5
+    },
+    "training": {
+      "training_data": {
+        "systems": [
+          "{{DATA}}/training_data/"
+        ],
+        "batch_size": 16,
+        "auto_prob": "prob_sys_size"
+      },
+      "validation_data": {
+        "systems": [
+          "{{DATA}}/validation_data/"
+        ],
+        "batch_size": 32,
+        "numb_batch": 12
+      },
+      "numb_steps": 100000,
+      "gradient_max_norm": 5.0,
+      "seed": 10,
+      "disp_file": "lcurve.out",
+      "disp_freq": 2000,
+      "save_freq": 20000,
+      "max_ckpt_keep": 3,
+      "enable_compile": true,
+      "enable_tf32": true
+    }
+  },
+  "model_devi_dt": 0.001,
+  "model_devi_skip": 1000,
+  "model_devi_f_trust_lo": 0.05,
+  "model_devi_f_trust_hi": 0.15,
+  "model_devi_e_trust_lo": 0.05,
+  "model_devi_e_trust_hi": 0.15,
+  "model_devi_clean_traj": true,
+  "model_devi_jobs": [
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 450, 500, 550], "press": [1.0], "nsteps":   4000, "trj_freq":  25 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [400, 500, 550, 600], "press": [1.0], "nsteps":   4000, "trj_freq":  25 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [400, 500, 600, 700], "press": [1.0], "nsteps":   8000, "trj_freq":  50 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [600, 700, 800, 900], "press": [1.0], "nsteps":   8000, "trj_freq":  50 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [600, 700, 800, 900], "press": [1.0], "nsteps":  20000, "trj_freq": 100 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500, 700, 900], "press": [1.0], "nsteps":  20000, "trj_freq": 100 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500, 700, 900], "press": [1.0], "nsteps":  50000, "trj_freq": 250 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500, 700, 900], "press": [1.0], "nsteps":  50000, "trj_freq": 250 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500],   "press": [1.0], "nsteps": 200000, "trj_freq": 250 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500],   "press": [1.0], "nsteps": 200000, "trj_freq": 250 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500],   "press": [1.0], "nsteps": 200000, "trj_freq": 250 },
+    { "sys_idx": [0], "ensemble": "nvt", "temps": [300, 500],   "press": [1.0], "nsteps": 200000, "trj_freq": 250 }
+  ],
+  "shuffle_poscar": false,
+  "fp_style": "vasp",
+  "fp_task_max": 300,
+  "fp_task_min": 60,
+  "fp_pp_path": "./",
+  "fp_pp_files": [
+    "POTCAR_Na",
+    "POTCAR_Ge",
+    "POTCAR_Se"
+  ],
+  "fp_incar": "./INCAR_run"
+}

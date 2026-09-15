@@ -1,0 +1,92 @@
+{
+  "_comment": "5账号集群分发(64核/作业, 配额2含排队)。incar_patch: 集群VASP对ALGO=Fast静默失败, 上传前自动改Normal(本地保持原INCAR)。jm已修复(vasp544+ulimit)。本地兜底并发上限2(1GPU+1CPU)。",
+  "accounts": [
+    {
+      "username": "wwg_13010449",
+      "host": "222.25.80.22",
+      "private_key_file": "{{SSH_KEYS}}/wwg_13010449_login1_RsaKeyExpireTime_2026-10-23_19-17-55.txt",
+      "remote_root": "/public/home/wwg_13010449/dpgen1_fp",
+      "max_jobs": 2,
+      "queue_name": "low",
+      "cpu_per_node": 64,
+      "source_list": [
+        "/public/software/profile.d/compiler_intel-compiler-2017.5.239.sh",
+        "/public/software/profile.d/mpi_intelmpi-2017.4.239.sh"
+      ],
+      "command": "export PATH=$HOME/vasp544_bin:$PATH && mpirun -np {nproc} vasp_std",
+      "incar_patch": {
+        "ALGO": "Normal"
+      }
+    },
+    {
+      "username": "kf_23010021",
+      "host": "222.25.80.22",
+      "private_key_file": "{{SSH_KEYS}}/kf_23010021_login1_RsaKeyExpireTime_2026-10-04_14-35-47.txt",
+      "remote_root": "/public/p300_data/home/kf_23010021/dpgen1_fp",
+      "max_jobs": 2,
+      "queue_name": "low",
+      "cpu_per_node": 64,
+      "source_list": [
+        "/public/software/profile.d/compiler_intel-compiler-2017.5.239.sh",
+        "/public/software/profile.d/mpi_intelmpi-2017.4.239.sh"
+      ],
+      "command": "export PATH=$HOME/vasp544_bin:$PATH && mpirun -np {nproc} vasp_std",
+      "incar_patch": {
+        "ALGO": "Normal"
+      }
+    },
+    {
+      "username": "jm_14052",
+      "host": "222.25.80.22",
+      "private_key_file": "{{SSH_KEYS}}/jm_14052_login1_RsaKeyExpireTime_2026-10-04_14-32-40.txt",
+      "remote_root": "/public/home/jm_14052/dpgen1_fp",
+      "max_jobs": 2,
+      "queue_name": "low",
+      "cpu_per_node": 64,
+      "source_list": [
+        "/public/software/profile.d/compiler_intel-compiler-2017.5.239.sh",
+        "/public/software/profile.d/mpi_intelmpi-2017.4.239.sh"
+      ],
+      "command": "export PATH=$HOME/vasp544_bin:$PATH && mpirun -np {nproc} vasp_std",
+      "incar_patch": {
+        "ALGO": "Normal"
+      }
+    },
+    {
+      "username": "zqf_23010022",
+      "host": "222.25.80.22",
+      "private_key_file": "{{SSH_KEYS}}/zqf_23010022_login1_RsaKeyExpireTime_2026-10-04_14-25-26.txt",
+      "remote_root": "/public/home/zqf_23010022/dpgen1_fp",
+      "max_jobs": 2,
+      "queue_name": "low",
+      "cpu_per_node": 64,
+      "source_list": [
+        "/public/software/profile.d/compiler_intel-compiler-2017.5.239.sh",
+        "/public/software/profile.d/mpi_intelmpi-2017.4.239.sh"
+      ],
+      "command": "export PATH=$HOME/vasp544_bin:$PATH && mpirun -np {nproc} vasp_std",
+      "incar_patch": {
+        "ALGO": "Normal"
+      }
+    },
+    {
+      "username": "yadxfjxy",
+      "host": "222.25.80.22",
+      "private_key_file": "{{SSH_KEYS}}/yadxfjxy_login1_RsaKeyExpireTime_2027-03-09_20-52-24.txt",
+      "remote_root": "/public/home/yadxfjxy/dpgen1_fp",
+      "max_jobs": 2,
+      "queue_name": "low",
+      "cpu_per_node": 64,
+      "source_list": [
+        "/public/software/profile.d/compiler_intel-compiler-2017.5.239.sh",
+        "/public/software/profile.d/mpi_intelmpi-2017.4.239.sh"
+      ],
+      "command": "export PATH=$HOME/software/vasp544_bin:$PATH && mpirun -np {nproc} vasp_std",
+      "incar_patch": {
+        "ALGO": "Normal"
+      }
+    }
+  ],
+  "local_command": "bash {{PROJECT}}/fp_wrapper.sh",
+  "local_max_concurrent": 2
+}

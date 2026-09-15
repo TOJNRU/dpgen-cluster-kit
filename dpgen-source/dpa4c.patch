@@ -1,0 +1,142 @@
+diff --git a/dpgen/generator/lib/lammps.py b/dpgen/generator/lib/lammps.py
+index b4bf603..baa360d 100644
+--- a/dpgen/generator/lib/lammps.py
++++ b/dpgen/generator/lib/lammps.py
+@@ -80,6 +80,7 @@ def make_lammps_input(
+     else:
+         ret += "boundary        p p p\n"
+     ret += "atom_style      atomic\n"
++    ret += "atom_modify     map yes\n"
+     ret += "\n"
+     ret += "neighbor        1.0 bin\n"
+ 
+@@ -102,6 +103,11 @@ def make_lammps_input(
+     ret += "change_box   all triclinic\n"
+     for jj in range(len(mass_map)):
+         ret += "mass            %d %f\n" % (jj + 1, mass_map[jj])  # noqa: UP031
++    # Load deepmd plugin (only for plugin-mode LAMMPS builds; built-in deepmd
++    # builds error out on this line, so it is opt-in via "model_devi_load_plugin")
++    if jdata.get("model_devi_load_plugin", False):
++        ret += "plugin          load libdeepmd_lmp.so\n"
++
+     graph_list = ""
+     for ii in graphs:
+         graph_list += ii + " "
+diff --git a/dpgen/generator/run.py b/dpgen/generator/run.py
+index 0ce513a..783406a 100644
+--- a/dpgen/generator/run.py
++++ b/dpgen/generator/run.py
+@@ -129,8 +129,16 @@ def _get_model_suffix(jdata) -> str:
+     """Return the model suffix based on the backend."""
+     mlp_engine = jdata.get("mlp_engine", "dp")
+     if mlp_engine == "dp":
+-        suffix_map = {"tensorflow": ".pb", "pytorch": ".pth", "jax": ".savedmodel"}
+         backend = jdata.get("train_backend", "tensorflow")
++        # DPA4/SeZM/dpa4c models always use .pt2 (AOTInductor) format
++        if backend == "pytorch":
++            train_param = jdata.get("default_training_param", {})
++            model = train_param.get("model", {})
++            model_type = model.get("type", "")
++            descriptor_type = model.get("descriptor", {}).get("type", "")
++            if model_type in ("SeZM", "dpa4") or descriptor_type == "dpa4c":
++                return ".pt2"
++        suffix_map = {"tensorflow": ".pb", "pytorch": ".pth", "jax": ".savedmodel"}
+         if backend in suffix_map:
+             suffix = suffix_map[backend]
+         else:
+@@ -764,10 +772,14 @@ def run_train_dp(iter_index, jdata, mdata):
+ 
+     train_command = mdata.get("train_command", "dp").strip()
+     # assert train_command == "dp", "The 'train_command' should be 'dp'"     # the tests should be updated to run this command
+-    if suffix == ".pth":
+-        train_command += " --pt"
++    # keep an explicitly requested backend (e.g. "dp --pt-expt") intact
++    explicit_backend = any(b in train_command for b in ("--pt", "--tf", "--jax", "-b "))
++    if suffix in (".pth", ".pt2"):
++        if not explicit_backend:
++            train_command += " --pt"
+     elif suffix == ".savedmodel":
+-        train_command += " --jax"
++        if not explicit_backend:
++            train_command += " --jax"
+ 
+     # paths
+     iter_name = make_iter_name(iter_index)
+@@ -803,7 +815,7 @@ def run_train_dp(iter_index, jdata, mdata):
+         command = f"{train_command} train {train_input_file}{extra_flags}"
+         if suffix == ".pb":
+             ckpt_suffix = ".index"
+-        elif suffix == ".pth":
++        elif suffix in (".pth", ".pt2"):
+             ckpt_suffix = ".pt"
+         elif suffix == ".savedmodel":
+             ckpt_suffix = ".jax"
+@@ -812,7 +824,22 @@ def run_train_dp(iter_index, jdata, mdata):
+         command = f"{{ if [ ! -f model.ckpt{ckpt_suffix} ]; then {command}{init_flag}; else {command} --restart model.ckpt; fi }}"
+         command = f"/bin/sh -c {shlex.quote(command)}"
+         commands.append(command)
+-        command = f"{train_command} freeze"
++        _model_type = (
++            jdata.get("default_training_param", {}).get("model", {}).get("type", "")
++        )
++        if suffix == ".pt2" and _model_type in ("SeZM", "dpa4"):
++            # SeZM/dpa4 only: fix fitting_net.type (ener -> dpa4_ener) before freeze;
++            # dpa4c checkpoints freeze as-is
++            fix_ckpt_cmd = (
++                "python3 -c \""
++                "import torch; "
++                "ckpt=torch.load('model.ckpt.pt',map_location='cpu',weights_only=False); "
++                "ckpt['model']['_extra_state']['model_params']['fitting_net']['type']='dpa4_ener'; "
++                "torch.save(ckpt,'model.ckpt.pt')\""
++            )
++            command = f"{fix_ckpt_cmd} && {train_command} freeze"
++        else:
++            command = f"{train_command} freeze"
+         commands.append(command)
+         if jdata.get("dp_compress", False):
+             commands.append(f"{train_command} compress")
+@@ -842,7 +869,7 @@ def run_train_dp(iter_index, jdata, mdata):
+                 os.path.join("old", "model.ckpt.index"),
+                 os.path.join("old", "model.ckpt.data-00000-of-00001"),
+             ]
+-        elif suffix == ".pth":
++        elif suffix in (".pth", ".pt2"):
+             forward_files += [os.path.join("old", "model.ckpt.pt")]
+         elif suffix == ".savedmodel":
+             forward_files += [os.path.join("old", "model.ckpt.jax")]
+@@ -866,7 +893,7 @@ def run_train_dp(iter_index, jdata, mdata):
+             "model.ckpt.index",
+             "model.ckpt.data-00000-of-00001",
+         ]
+-    elif suffix == ".pth":
++    elif suffix in (".pth", ".pt2"):
+         backward_files += ["model.ckpt.pt"]
+     elif suffix == ".savedmodel":
+         backward_files += ["model.ckpt.jax"]
+@@ -2511,7 +2538,13 @@ def _select_by_model_devi_standard(
+                     ) or (
+                         all_conf[ii][4] < f_trust_hi and all_conf[ii][4] >= f_trust_lo
+                     ):
+-                        fp_candidate.append([tt, cc])
++                        # store normalized deviation as the 3rd element for
++                        # max-deviation-first candidate ranking (patch 2026-09-15)
++                        devi_key = max(
++                            all_conf[ii][1] / v_trust_hi,
++                            all_conf[ii][4] / f_trust_hi,
++                        )
++                        fp_candidate.append([tt, cc, devi_key])
+                         counter["candidate"] += 1
+                     elif (all_conf[ii][1] >= v_trust_hi) or (
+                         all_conf[ii][4] >= f_trust_hi
+@@ -2860,7 +2893,11 @@ def _make_fp_vasp_inner(
+             dlog.info(
+                 f"system {ss:s} {cc_key:9s} : {cc_value:6d} in {fp_sum:6d} {cc_value / fp_sum * 100:6.2f} %"
+             )
++        # max-deviation-first: label the frames the models are least sure
++        # about (patch 2026-09-15, replaces random shuffle); amber-engine
++        # candidates carry no deviation and keep a stable random order
+         random.shuffle(fp_candidate)
++        fp_candidate.sort(key=lambda x: -x[2] if len(x) > 2 else 0)
+         if detailed_report_make_fp:
+             random.shuffle(fp_rest_failed)
+             random.shuffle(fp_rest_accurate)
