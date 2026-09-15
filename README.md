@@ -1,6 +1,6 @@
 # dpgen-cluster-kit —— NaGeSe DPA4C × dpgen1 × 集群 VASP 分发 部署包
 
-> 内容: 你的补丁版 dpgen 源码(含 dpa4c patch) + 多账号 VASP 分发器 + NaGeSe 项目全套配置。
+> 内容: 你的补丁版 dpgen 源码(含 dpa4c patch) + 多账号 VASP 分发器 + Na4GeSe4 项目全套配置。
 > 目标: 在新电脑上 3 步完成部署: 解压 → configure → setup → sbatch。
 
 ## 包内容
